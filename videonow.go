@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
-	"stats/videonow/model"
 )
 
 
@@ -16,65 +15,43 @@ type ConnectParams struct{
 	Db string
 }
 
-type VideoNowClient struct {
+type VideoNow struct {
 	Params *ConnectParams
 	Client *sql.DB
-	IsConnect int
 }
 
-func NewVideoNowClient(host string, port string, user string, pass string, db string) (*VideoNowClient) {
+func New(host string) (*VideoNow) {
 
-	mlClient, err :=  sql.Open("mysql", "root:r00-t@tcp(127.0.0.1:3306)/videonow")
+	mlClient, err :=  sql.Open("mysql", host)
 
 	if err != nil {
 		log.Fatalln("VideoNow connection error")
 	}
 
-	return &VideoNowClient{
+	return &VideoNow{
 		Client: mlClient,
-		IsConnect: 1,
 		Params: &ConnectParams{
 			Host: host,
-			Port: port,
-			User: user,
-			Pass: pass,
-			Db: db,
 		},
 	}
 }
 
-// переподключаемся при разрывке связи
-func (v *VideoNowClient) Ping() (error) {
-
-	err := v.Client.Ping()
-
-	if err != nil {
-
-		mlClient, err := sql.Open("mysql", v.Params.User + ":" + v.Params.Pass + "@" + v.Params.Host + ":" + string(v.Params.Port) + "/" + v.Params.Db)
-
-		if err != nil {
-			log.Fatal(err)
-			return err
-		}
-
-		v.Client = mlClient
-	}
-
-	return nil
+// закрываем соединение с mysql
+func (v *VideoNow) Close() {
+	v.Client.Close()
 }
 
 // выбираем профиль
-func (v *VideoNowClient) Profile(id string) (*model.Profile, error){
-
-	//v.Ping()
+func (v *VideoNow) Profile(id string) (*Profile, error){
 
 	// Prepare statement for reading data
 	row := v.Client.QueryRow("SELECT id, site_id, is_active, is_test, is_bad, category_id FROM profile WHERE id = ?", id)
-	proto := new(model.Profile)
+	proto := &Profile{}
+
 	var siteId string = ""
 	err := row.Scan(&proto.Id, &siteId, &proto.Active, &proto.Test, &proto.Bad, &proto.Category)
 	if err != nil {
-		return &model.Profile{}, err
+		return &Profile{}, err
 	}
 
 	if siteId != "" {
@@ -89,35 +66,35 @@ func (v *VideoNowClient) Profile(id string) (*model.Profile, error){
 }
 
 // выбираем компанию
-func (v *VideoNowClient) Campaign(id string) (*model.Campaign, error){
+func (v *VideoNow) Campaign(id string) (*Campaign, error){
 
 	//v.Ping()
 
 	// Prepare statement for reading data
 	row := v.Client.QueryRow("SELECT id, belong, status, is_approved, discount  FROM campaign WHERE id = ?", id)
-	proto := new(model.Campaign)
+	proto := &Campaign{}
 	err := row.Scan(&proto.Id, &proto.Belong, &proto.Status, &proto.Approved, &proto.Discount)
 
 	if err != nil {
-		return &model.Campaign{}, err
+		return &Campaign{}, err
 	}
 
 	return proto, nil
 }
 
 // выбираем сайт
-func (v *VideoNowClient) Site(id string) (*model.Site, error){
+func (v *VideoNow) Site(id string) (*Site, error){
 
 	//v.Ping()
 
 	// Prepare statement for reading data
 	row := v.Client.QueryRow("SELECT id, user_id, is_active, category_id  FROM site WHERE id = ?", id)
-	proto := new(model.Site)
+	proto := &Site{}
 	userId := ""
 	err := row.Scan(&proto.Id, &userId, &proto.Active, &proto.Category)
 
 	if err != nil {
-		return &model.Site{}, err
+		return &Site{}, err
 	}
 
 	if userId != "" {
@@ -132,17 +109,17 @@ func (v *VideoNowClient) Site(id string) (*model.Site, error){
 }
 
 // выбираем пользователя
-func (v *VideoNowClient) User(id string) (*model.User, error){
+func (v *VideoNow) User(id string) (*User, error){
 
 	//v.Ping()
 
 	// Prepare statement for reading data
 	row := v.Client.QueryRow("SELECT id FROM user WHERE id = ?", id)
-	proto := new(model.User)
+	proto := &User{}
 	err := row.Scan(&proto.Id)
 
 	if err != nil {
-		return &model.User{}, err
+		return &User{}, err
 	}
 
 	return proto, nil

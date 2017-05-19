@@ -1,4 +1,4 @@
-package model
+package videonow
 
 type Profile struct {
 	Id string

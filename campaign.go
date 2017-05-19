@@ -1,4 +1,4 @@
-package model
+package videonow
 
 type Campaign struct {
 	Id string

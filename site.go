@@ -1,4 +1,4 @@
-package model
+package videonow
 
 type Site struct {
 	Id string

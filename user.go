@@ -1,4 +1,4 @@
-package model
+package videonow
 
 type User struct {
 	Id string

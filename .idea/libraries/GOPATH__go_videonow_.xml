@@ -1,0 +1,31 @@
+<component name="libraryTable">
+  <library name="GOPATH &lt;go-videonow&gt;">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/../../../golang.org" />
+      <root url="file://$PROJECT_DIR$/../../../viqeo-deploy" />
+      <root url="file://$PROJECT_DIR$/../../../gopkg.in" />
+      <root url="file://$PROJECT_DIR$/../.." />
+      <root url="file://$PROJECT_DIR$/../../../stats" />
+      <root url="file://$PROJECT_DIR$/../../../videonow-stats-bkp" />
+      <root url="file://$PROJECT_DIR$/../../../visitor" />
+      <root url="file://$PROJECT_DIR$/../../../viqeo-stats" />
+      <root url="file://$PROJECT_DIR$/../../../google.golang.org" />
+      <root url="file://$PROJECT_DIR$/../../../videonow-stats" />
+    </CLASSES>
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../../../golang.org" />
+      <root url="file://$PROJECT_DIR$/../../../viqeo-deploy" />
+      <root url="file://$PROJECT_DIR$/../../../gopkg.in" />
+      <root url="file://$PROJECT_DIR$/../.." />
+      <root url="file://$PROJECT_DIR$/../../../stats" />
+      <root url="file://$PROJECT_DIR$/../../../videonow-stats-bkp" />
+      <root url="file://$PROJECT_DIR$/../../../visitor" />
+      <root url="file://$PROJECT_DIR$/../../../viqeo-stats" />
+      <root url="file://$PROJECT_DIR$/../../../google.golang.org" />
+      <root url="file://$PROJECT_DIR$/../../../videonow-stats" />
+    </SOURCES>
+    <excluded>
+      <root url="file://$PROJECT_DIR$" />
+    </excluded>
+  </library>
+</component>
