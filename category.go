@@ -11,7 +11,7 @@ package videonow
 //);
 
 type Category struct {
-	Id uint64		//id SMALLINT(6) unsigned PRIMARY KEY NOT NULL AUTO_INCREMENT,
-	Name string		//name VARCHAR(50) DEFAULT '' NOT NULL,
-	Rate float64		// rate FLOAT(5,2) unsigned DEFAULT '1.00'
+	Id uint64		`json:"id",bson:"id"`//id SMALLINT(6) unsigned PRIMARY KEY NOT NULL AUTO_INCREMENT,
+	Name string		`json:"name",bson:"name"`//name VARCHAR(50) DEFAULT '' NOT NULL,
+	Rate float64		`json:"rate",bson:"rate"`// rate FLOAT(5,2) unsigned DEFAULT '1.00'
 }

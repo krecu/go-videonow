@@ -57,44 +57,103 @@ func (v *VideoNow) SetCache(provider *cache.Redis) {
 // выбираем профиль
 func (v *VideoNow) Profile(id string) (*Profile, error){
 
-	// Prepare statement for reading data
-	row := v.Client.QueryRow("SELECT id, site_id, is_active, is_test, is_bad, category_id FROM profile WHERE id = ?", id)
 	proto := &Profile{}
-
-	var siteId string = ""
 
 	// если используеться кеш
 	// попробуем извлечь данные
 	if v._cache {
 		data, err := v.Cache.Get("profile_" + id)
 		if data != nil && err == nil {
-			json.Unmarshal(data, &proto);
+			//json.Unmarshal(data, &proto);
 		}
 	}
 
 	// если модель пустая то попробуем извлечь из БД
-	if proto.Id == "" {
-		// извлекаем
-		err := row.Scan(&proto.Id, &siteId, &proto.Active, &proto.Test, &proto.Bad, &proto.Category)
+	if proto.Id == 0 {
 
-		// если не нашли вернем нули
-		if err != nil {
+		var (
+			Id, Title, CategoryId, ContainerTypeId, DeviceId, VpaidType, CashIn,
+			PartnerPlanId, SiteId, IsActive, IsTest, IsBad, UseContent []byte
+		)
+
+		// Prepare statement for reading data
+		row := v.Client.QueryRow(`
+		SELECT
+			id, title, category_id, container_type_id, device_id, vpaid_type, cash_in, partner_plan_id,
+			site_id, is_active, is_test, is_bad, category_id, use_content
+		FROM profile WHERE id = ?
+		`, id)
+
+		// извлекаем
+		err := row.Scan(&Id, &Title, &CategoryId, &ContainerTypeId, &DeviceId, &VpaidType, &CashIn, &PartnerPlanId,
+			&SiteId, &IsActive, &IsTest, &IsBad, &CategoryId, &UseContent); if err != nil {
+			log.Printf("MYSQL: запрос профиля %s: %s", id, err.Error())
 			return &Profile{}, err
 		}
 
-		// если задан сайт то извлечем еще и его
-		if siteId != "" {
-			site, err := v.Site(siteId)
-			if err != nil {
-				log.Fatalf("MYSQL: запрос сата %s: %s", siteId, err.Error())
-			} else {
-				proto.Site = *site
+		_id, _ := strconv.ParseUint(string(Id), 10, 64)
+		proto.Id = _id
+
+		_PartnerPlanId, _ := strconv.ParseUint(string(PartnerPlanId), 10, 64)
+		proto.PartnerPlanId = _PartnerPlanId
+
+		proto.Title = string(Title)
+
+		if string(IsActive) == "1" {
+			proto.IsActive = true
+		} else {
+			proto.IsActive = false
+		}
+
+		if string(IsTest) == "1" {
+			proto.IsTest = true
+		} else {
+			proto.IsTest = false
+		}
+
+		if string(IsBad) == "1" {
+			proto.IsBad = true
+		} else {
+			proto.IsBad = false
+		}
+
+		if string(UseContent) == "" {
+			proto.UseContent = false
+		} else {
+			proto.UseContent = true
+		}
+
+		if CategoryId != nil {
+			category, err := v.Category(string(CategoryId)); if err != nil {
+				log.Printf("MYSQL: запрос категории %s: %s", CategoryId, err.Error())
 			}
+			proto.Category = *category
+		}
+
+
+		financial, err := v.ProfileFinancial(id); if err != nil {
+			log.Printf("MYSQL: запрос финансирования %s: %s", id, err.Error())
+		}
+		proto.Financial = financial
+
+		financialContent, err := v.ProfileFinancialContent(id); if err != nil {
+			log.Printf("MYSQL: запрос финансировани контента %s: %s", id, err.Error())
+		}
+		proto.FinancialContent = financialContent
+
+
+		// если задан сайт то извлечем еще и его
+		if SiteId != nil {
+			site, err := v.Site(string(SiteId)); if err != nil {
+				log.Fatalf("MYSQL: запрос сата %s: %s", SiteId, err.Error())
+			}
+			proto.Site = *site
 		}
 
 		// если есть кеш то положим обьект в него
 		if v._cache {
-			data, err := json.Marshal(proto); if err == nil {
+			data, err := json.Marshal(proto);
+			if err == nil {
 				v.Cache.Set("profile_"+id, string(data))
 			}
 		}
@@ -478,7 +537,7 @@ func (v *VideoNow) User(id string) (*User, error){
 	return proto, nil
 }
 
-// выбираем пользователя
+// выбираем категории сайтов
 func (v *VideoNow) Category(id string) (*Category, error){
 
 	proto := &Category{}
@@ -531,7 +590,7 @@ func (v *VideoNow) Category(id string) (*Category, error){
 	return proto, nil
 }
 
-// выбираем пользователя
+// выбираем категории компаний
 func (v *VideoNow) CampaignCategory(id string, cid string) (*CampaignCategory, error){
 
 	proto := &CampaignCategory{}
@@ -595,6 +654,208 @@ func (v *VideoNow) CampaignCategory(id string, cid string) (*CampaignCategory, e
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
 				v.Cache.Set("campaign_category_"+id, string(data))
+			}
+		}
+	}
+
+	return proto, nil
+}
+
+// выбираем финонсирование по профилю
+func (v *VideoNow) ProfileFinancial(id string) ([]ProfileFinancial, error){
+
+	var proto []ProfileFinancial
+	var rows *sql.Rows
+	var err error
+
+	// если используеться кеш
+	// попробуем извлечь данные
+	if v._cache {
+		data, err := v.Cache.Get("profile_financial_" + id)
+		if data != nil && err == nil {
+			json.Unmarshal(data, &proto);
+		}
+	}
+
+	// если в кеше модель пустая то попробуем извлечь из БД
+	if len(proto) == 0 {
+
+		var (
+			Id, PartnerPercent, Belong, Percent,
+			MinCpm, IsShow, CurrencyId, CountryId, UserId []byte
+		)
+
+		// дастаем финансовые условия
+		rows, err = v.Client.Query(`
+		SELECT
+			IFNULL(ff.id, fs.id) AS id,
+			IFNULL(pp.percent,0) AS partner_percent,
+			IFNULL(ff.belong, fs.belong) AS belong,
+			IFNULL(ff.percent, fs.percent) AS percent,
+			IFNULL(ff.min_cpm, fs.min_cpm) AS min_cpm,
+			IFNULL(ff.is_show, fs.is_show) AS is_show,
+			IFNULL(ff.currency_id, fs.currency_id) AS currency_id,
+			IFNULL(ff.country_id, fs.country_id) AS country_id,
+			IFNULL(ff.user_id, fs.user_id) AS user_id
+		FROM profile p
+		LEFT JOIN partner_plan 	pp ON pp.id = p.partner_plan_id
+		LEFT JOIN financial_condition ff ON ff.profile_id = p.id
+		LEFT JOIN (
+				SELECT
+					f.*,
+					pp.id AS profile
+				FROM financial_condition f
+				JOIN site s 		ON s.user_id 	=  f.user_id
+				JOIN profile pp ON pp.site_id = s.id
+				WHERE f.profile_id IS NULL
+		) fs ON fs.profile = p.id
+
+		WHERE p.id = ? GROUP BY belong
+  		`, id);
+
+		if err != nil {
+			return proto, err
+		}
+
+		for rows.Next() {
+
+			item := &ProfileFinancial{}
+
+			err = rows.Scan(&Id, &PartnerPercent, &Belong, &Percent,
+				&MinCpm, &IsShow, &CurrencyId, &CountryId, &UserId); if err == nil {
+
+				_id, _ := strconv.ParseUint(string(Id), 10, 64)
+				item.Id = _id
+
+				_PartnerPercent, _ := strconv.ParseFloat(string(PartnerPercent),64)
+				item.PartnerPercent = _PartnerPercent
+
+				item.Belong = string(Belong)
+
+				_Percent, _ := strconv.ParseFloat(string(Percent),64)
+				item.Percent = _Percent
+
+				_MinCpm, _ := strconv.ParseFloat(string(MinCpm),64)
+				item.MinCpm = _MinCpm
+
+				if string(IsShow) == "0" {
+					item.IsShow = false
+				} else {
+					item.IsShow = true
+				}
+
+				_CurrencyId, _ := strconv.ParseUint(string(CurrencyId), 10, 64)
+				item.CurrencyId = _CurrencyId
+
+				_CountryId, _ := strconv.ParseUint(string(CountryId), 10, 64)
+				item.CountryId = _CountryId
+
+				_UserId, _ := strconv.ParseUint(string(UserId), 10, 64)
+				item.UserId = _UserId
+
+
+				proto = append(proto, *item)
+			}
+
+
+		}
+
+
+		// если есть кеш то положим обьект в него
+		if v._cache {
+			data, err := json.Marshal(proto); if err == nil {
+				v.Cache.Set("profile_financial_"+id, string(data))
+			}
+		}
+	}
+
+	return proto, nil
+}
+
+// выбираем финонсирование по профилю
+func (v *VideoNow) ProfileFinancialContent(id string) ([]ProfileFinancialContent, error){
+
+	var proto []ProfileFinancialContent
+	var rows *sql.Rows
+	var err error
+
+	// если используеться кеш
+	// попробуем извлечь данные
+	if v._cache {
+		data, err := v.Cache.Get("profile_financial_content_" + id)
+		if data != nil && err == nil {
+			json.Unmarshal(data, &proto);
+		}
+	}
+
+	// если в кеше модель пустая то попробуем извлечь из БД
+	if len(proto) == 0 {
+
+		var (
+			Id, Percent, MinCpm, CurrencyId, UserId, ContentUserId []byte
+		)
+
+		// дастаем финансовые условия
+		rows, err = v.Client.Query(`
+		SELECT
+			IFNULL(ff.id, fs.id) AS id,
+			IFNULL(ff.percent, fs.percent) AS percent,
+			IFNULL(ff.min_cpm, fs.min_cpm) AS min_cpm,
+			IFNULL(ff.currency_id, fs.currency_id) AS currency_id,
+			IFNULL(ff.user_id, fs.user_id) AS user_id,
+			IFNULL(ff.content_user_id, fs.content_user_id) AS content_user_id
+		FROM profile p
+		LEFT JOIN partner_plan pp ON pp.id = p.partner_plan_id
+		LEFT JOIN financial_condition_content_user ff ON ff.profile_id = p.id
+		LEFT JOIN (
+			SELECT
+				f.*,
+				pp.id AS profile
+			FROM financial_condition_content_user f
+			JOIN site s ON s.user_id = f.user_id
+			JOIN profile pp ON pp.site_id = s.id
+			WHERE f.profile_id IS NULL
+		) fs ON fs.profile = p.id
+
+		WHERE p.id = ?
+  		`, id);
+
+		if err != nil {
+			return proto, err
+		}
+
+		for rows.Next() {
+
+			item := &ProfileFinancialContent{}
+
+			err = rows.Scan(&Id, &Percent, &MinCpm, &CurrencyId, &UserId, &ContentUserId); if err == nil {
+
+				_id, _ := strconv.ParseUint(string(Id), 10, 64)
+				item.Id = _id
+
+				_Percent, _ := strconv.ParseFloat(string(Percent),64)
+				item.Percent = _Percent
+
+				_MinCpm, _ := strconv.ParseFloat(string(MinCpm),64)
+				item.MinCpm = _MinCpm
+
+				_CurrencyId, _ := strconv.ParseUint(string(CurrencyId), 10, 64)
+				item.CurrencyId = _CurrencyId
+
+				_ContentUserId, _ := strconv.ParseUint(string(ContentUserId), 10, 64)
+				item.ContentUserId = _ContentUserId
+
+				_UserId, _ := strconv.ParseUint(string(UserId), 10, 64)
+				item.UserId = _UserId
+
+				proto = append(proto, *item)
+			}
+		}
+
+		// если есть кеш то положим обьект в него
+		if v._cache {
+			data, err := json.Marshal(proto); if err == nil {
+				v.Cache.Set("profile_financial_content_"+id, string(data))
 			}
 		}
 	}

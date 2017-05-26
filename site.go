@@ -22,8 +22,8 @@ package videonow
 //CREATE INDEX user_id ON site (user_id);
 
 type Site struct {
-	Id uint64		// id INT(11) unsigned PRIMARY KEY NOT NULL AUTO_INCREMENT,
-	IsActive bool		//is_active TINYINT(1) DEFAULT '1' NOT NULL,
-	User User		//user_id INT(11) unsigned DEFAULT '0' NOT NULL,
-	Category Category	//category_id INT(11),
+	Id uint64		`json:"id",bson:"id"`// id INT(11) unsigned PRIMARY KEY NOT NULL AUTO_INCREMENT,
+	IsActive bool		`json:"is_active",bson:"is_active"`//is_active TINYINT(1) DEFAULT '1' NOT NULL,
+	User User		`json:"user",bson:"user"`//user_id INT(11) unsigned DEFAULT '0' NOT NULL,
+	Category Category	`json:"category",bson:"category"`//category_id INT(11),
 }
