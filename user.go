@@ -1,5 +1,6 @@
 package videonow
 
 type User struct {
-	Id string
+	Id uint64
+	UserAdvType string
 }
