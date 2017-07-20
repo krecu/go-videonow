@@ -48,6 +48,6 @@ type Campaign struct {
 	Category []CampaignCategory	`json:"category",bson:"category"`//
 	Region	 []Region		`json:"region",bson:"region"`
 	Countries []Country		`json:"countries",bson:"countries"`
-	Profiles []Profile		`json:"profiles",bson:"profiles"`
+	Profiles []int		`json:"profiles",bson:"profiles"`
 
 }

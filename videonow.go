@@ -57,24 +57,27 @@ func (v *VideoNow) SetCache(provider *cache.Redis) {
 // выбираем профиль
 func (v *VideoNow) Profile(id string) (*Profile, error){
 
+	var (
+		Id, Title, CategoryId, ContainerTypeId, DeviceId, VpaidType, CashIn,
+		PartnerPlanId, SiteId, IsActive, IsTest, IsBad, UseContent []byte
+	)
+
 	proto := &Profile{}
+
 
 	// если используеться кеш
 	// попробуем извлечь данные
 	if v._cache {
+
 		data, err := v.Cache.Get("profile_" + id)
 		if data != nil && err == nil {
-			//json.Unmarshal(data, &proto);
+			json.Unmarshal(data, &proto);
 		}
+
 	}
 
 	// если модель пустая то попробуем извлечь из БД
 	if proto.Id == 0 {
-
-		var (
-			Id, Title, CategoryId, ContainerTypeId, DeviceId, VpaidType, CashIn,
-			PartnerPlanId, SiteId, IsActive, IsTest, IsBad, UseContent []byte
-		)
 
 		// Prepare statement for reading data
 		row := v.Client.QueryRow(`
@@ -87,7 +90,7 @@ func (v *VideoNow) Profile(id string) (*Profile, error){
 		// извлекаем
 		err := row.Scan(&Id, &Title, &CategoryId, &ContainerTypeId, &DeviceId, &VpaidType, &CashIn, &PartnerPlanId,
 			&SiteId, &IsActive, &IsTest, &IsBad, &CategoryId, &UseContent); if err != nil {
-			log.Printf("MYSQL: запрос профиля %s: %s", id, err.Error())
+			log.Printf("VIDEONOW MYSQL: запрос профиля %s: %s", id, err.Error())
 			return &Profile{}, err
 		}
 
@@ -125,19 +128,19 @@ func (v *VideoNow) Profile(id string) (*Profile, error){
 
 		if CategoryId != nil {
 			category, err := v.Category(string(CategoryId)); if err != nil {
-				log.Printf("MYSQL: запрос категории %s: %s", CategoryId, err.Error())
+				log.Printf("VIDEONOW MYSQL: запрос категории %s: %s", CategoryId, err.Error())
 			}
 			proto.Category = *category
 		}
 
 
 		financial, err := v.ProfileFinancial(id); if err != nil {
-			log.Printf("MYSQL: запрос финансирования %s: %s", id, err.Error())
+			log.Printf("VIDEONOW MYSQL: запрос финансирования %s: %s", id, err.Error())
 		}
 		proto.Financial = financial
 
 		financialContent, err := v.ProfileFinancialContent(id); if err != nil {
-			log.Printf("MYSQL: запрос финансировани контента %s: %s", id, err.Error())
+			log.Printf("VIDEONOW MYSQL: запрос финансировани контента %s: %s", id, err.Error())
 		}
 		proto.FinancialContent = financialContent
 
@@ -145,7 +148,7 @@ func (v *VideoNow) Profile(id string) (*Profile, error){
 		// если задан сайт то извлечем еще и его
 		if SiteId != nil {
 			site, err := v.Site(string(SiteId)); if err != nil {
-				log.Fatalf("MYSQL: запрос сата %s: %s", SiteId, err.Error())
+				log.Fatalf("VIDEONOW MYSQL: запрос сата %s: %s", SiteId, err.Error())
 			}
 			proto.Site = *site
 		}
@@ -154,7 +157,7 @@ func (v *VideoNow) Profile(id string) (*Profile, error){
 		if v._cache {
 			data, err := json.Marshal(proto);
 			if err == nil {
-				v.Cache.Set("profile_"+id, string(data))
+				v.Cache.Set("profile_"+id, string(data), time.Minute * 1)
 			}
 		}
 
@@ -183,6 +186,7 @@ func (v *VideoNow) Campaign(id string) (*Campaign, error){
 	// если используеться кеш
 	// попробуем извлечь данные
 	if v._cache {
+
 		data, err := v.Cache.Get("campaign_" + id)
 		if data != nil && err == nil {
 			json.Unmarshal(data, &proto);
@@ -352,12 +356,10 @@ func (v *VideoNow) Campaign(id string) (*Campaign, error){
   		`, id)
 
 		if err == nil {
-			var profileId string
+			var profileId int
 			for rows.Next() {
 				err = rows.Scan(&profileId); if err == nil {
-					profile, err := v.Profile(profileId); if err == nil {
-						proto.Profiles = append(proto.Profiles, *profile)
-					}
+					proto.Profiles = append(proto.Profiles, profileId)
 				}
 			}
 		}
@@ -418,7 +420,7 @@ func (v *VideoNow) Campaign(id string) (*Campaign, error){
 		// если есть кеш то положим обьект в него
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
-				v.Cache.Set("campaign_"+id, string(data))
+				v.Cache.Set("campaign_"+id, string(data), time.Minute * 1)
 			}
 		}
 	}
@@ -480,7 +482,7 @@ func (v *VideoNow) Site(id string) (*Site, error){
 		// если есть кеш то положим обьект в него
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
-				v.Cache.Set("site_"+id, string(data))
+				v.Cache.Set("site_"+id, string(data), time.Minute * 1)
 			}
 		}
 	}
@@ -529,7 +531,7 @@ func (v *VideoNow) User(id string) (*User, error){
 		// если есть кеш то положим обьект в него
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
-				v.Cache.Set("user_"+id, string(data))
+				v.Cache.Set("user_"+id, string(data), time.Minute * 1)
 			}
 		}
 	}
@@ -582,7 +584,7 @@ func (v *VideoNow) Category(id string) (*Category, error){
 		// если есть кеш то положим обьект в него
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
-				v.Cache.Set("category_"+id, string(data))
+				v.Cache.Set("category_"+id, string(data), time.Minute * 1)
 			}
 		}
 	}
@@ -653,7 +655,7 @@ func (v *VideoNow) CampaignCategory(id string, cid string) (*CampaignCategory, e
 		// если есть кеш то положим обьект в него
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
-				v.Cache.Set("campaign_category_"+id, string(data))
+				v.Cache.Set("campaign_category_"+id, string(data), time.Minute * 1)
 			}
 		}
 	}
@@ -764,7 +766,7 @@ func (v *VideoNow) ProfileFinancial(id string) ([]ProfileFinancial, error){
 		// если есть кеш то положим обьект в него
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
-				v.Cache.Set("profile_financial_"+id, string(data))
+				v.Cache.Set("profile_financial_"+id, string(data), time.Minute * 1)
 			}
 		}
 	}
@@ -855,7 +857,7 @@ func (v *VideoNow) ProfileFinancialContent(id string) ([]ProfileFinancialContent
 		// если есть кеш то положим обьект в него
 		if v._cache {
 			data, err := json.Marshal(proto); if err == nil {
-				v.Cache.Set("profile_financial_content_"+id, string(data))
+				v.Cache.Set("profile_financial_content_"+id, string(data), time.Minute * 1)
 			}
 		}
 	}
