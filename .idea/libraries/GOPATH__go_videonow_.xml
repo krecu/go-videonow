@@ -2,6 +2,7 @@
   <library name="GOPATH &lt;go-videonow&gt;">
     <CLASSES>
       <root url="file://$PROJECT_DIR$/../../../golang.org" />
+      <root url="file://$PROJECT_DIR$/../../../websocket-adserver" />
       <root url="file://$PROJECT_DIR$/../../../viqeo-deploy" />
       <root url="file://$PROJECT_DIR$/../../../gopkg.in" />
       <root url="file://$PROJECT_DIR$/../.." />
@@ -14,6 +15,7 @@
     </CLASSES>
     <SOURCES>
       <root url="file://$PROJECT_DIR$/../../../golang.org" />
+      <root url="file://$PROJECT_DIR$/../../../websocket-adserver" />
       <root url="file://$PROJECT_DIR$/../../../viqeo-deploy" />
       <root url="file://$PROJECT_DIR$/../../../gopkg.in" />
       <root url="file://$PROJECT_DIR$/../.." />

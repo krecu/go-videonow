@@ -92,6 +92,7 @@ type Profile struct {
 	IsTest bool					`json:"is_test",bson:"is_test"`//is_test TINYINT(1) unsigned DEFAULT '0' NOT NULL,
 	IsBad bool					`json:"is_bad",bson:"is_bad"`//is_bad TINYINT(3) unsigned DEFAULT '0' NOT NULL,
 	Category Category				`json:"category",bson:"category"`//category_id INT(11),
+	Campaign []int					`json:"campaign",bson:"campaign"`//category_id INT(11),
 	Financial []ProfileFinancial			`json:"financial",bson:"financial"`
 	FinancialContent []ProfileFinancialContent	`json:"financial_content",bson:"financial_content"`
 	//ContainerTypeId		//container_type_id TINYINT(4) NOT NULL COMMENT 'Где показывается реклама - в плеере, в тексте сайта, или ещё где',
@@ -100,5 +101,8 @@ type Profile struct {
 	CashIn float64					`json:"cash_in",bson:"cash_in"`//cash_in FLOAT UNSIGNED NOT NULL,
 	UseContent bool					`json:"use_content",bson:"use_content"`//ENUM('', 'on') NOT NULL,
 	PartnerPlanId uint64				`json:"partner_plan_id",bson:"partner_plan_id"`//INT(10) unsigned NOT NULL,
+	ConfContentrollDynamic bool			`json:"conf_contentroll_dynamic",bson:"conf_contentroll_dynamic"`//VARCHAR(100),
+	ConfContentrollNoAdCallback string		`json:"conf_contentroll_no_ad_callback",bson:"conf_contentroll_no_ad_callback"`//VARCHAR(100),
+	Json string					`json:"json",bson:"json"`//VARCHAR(100),
 
 }

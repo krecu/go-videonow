@@ -54,12 +54,145 @@ func (v *VideoNow) SetCache(provider *cache.Redis) {
 	v._cache = true
 }
 
-// выбираем профиль
+/**
+	Получить список всех профилей
+ */
+func (v *VideoNow) GetProfiles() (list []string, err error){
+
+	var rows *sql.Rows
+
+	// дастаем финансовые условия
+	rows, err = v.Client.Query(`
+		SELECT
+			id
+			FROM profile
+			WHERE is_active = 1 AND is_bad = 0 AND is_test = 0
+  		`);
+
+	if err != nil {
+		return
+	}
+
+	var Id string
+	for rows.Next() {
+
+		err = rows.Scan(&Id); if err == nil {
+			list = append(list, Id)
+		}
+	}
+
+	return
+}
+
+/**
+	Получить список всех профилей
+ */
+func (v *VideoNow) GetCampaign() (list []string, err error){
+
+	var rows *sql.Rows
+
+	// дастаем финансовые условия
+	rows, err = v.Client.Query(`
+		SELECT
+		  c.id
+		FROM campaign as c
+		  WHERE c.archived = '' AND c.status = 'work'
+  		`);
+
+	if err != nil {
+		return
+	}
+
+	var Id string
+	for rows.Next() {
+
+		err = rows.Scan(&Id); if err == nil {
+			list = append(list, Id)
+		}
+	}
+
+	return
+}
+
+/**
+	Получить список всех профилей
+ */
+func (v *VideoNow) GetJs() (list []string, err error){
+
+	var rows *sql.Rows
+
+	// дастаем финансовые условия
+	rows, err = v.Client.Query(`
+		SELECT
+			version
+		FROM js_sources GROUP BY version
+  		`);
+
+	if err != nil {
+		return
+	}
+
+	var Version string
+
+	for rows.Next() {
+		err = rows.Scan(&Version); if err == nil {
+			list = append(list, Version)
+		}
+	}
+
+
+	return
+}
+
+/**
+	Получить конфиг js
+ */
+func (v *VideoNow) Js(id string) (js Js, err error){
+
+	var rows *sql.Rows
+
+	// дастаем финансовые условия
+	rows, err = v.Client.Query(`
+		SELECT
+			env, hash
+		FROM js_sources WHERE version = ?
+
+  		`, id);
+
+	if err != nil {
+		return
+	}
+
+	var Version string
+	var Env string
+	var Hash string
+
+	items := make(map[string]Js)
+
+	js = Js{
+		Version:id,
+		Data: make(map[string]string),
+	}
+	for rows.Next() {
+
+		err = rows.Scan(&Env, &Hash); if err == nil {
+			js.Data[Env] = Hash
+			items[Version] = js
+		}
+	}
+
+	return
+}
+
+/**
+	Запросы данных по профилю
+ */
 func (v *VideoNow) Profile(id string) (*Profile, error){
 
 	var (
 		Id, Title, CategoryId, ContainerTypeId, DeviceId, VpaidType, CashIn,
-		PartnerPlanId, SiteId, IsActive, IsTest, IsBad, UseContent []byte
+		PartnerPlanId, SiteId, IsActive, IsTest, IsBad, UseContent, ConfContentrollDynamic,
+		ConfContentrollNoAdCallback, Json []byte
 	)
 
 	proto := &Profile{}
@@ -83,13 +216,15 @@ func (v *VideoNow) Profile(id string) (*Profile, error){
 		row := v.Client.QueryRow(`
 		SELECT
 			id, title, category_id, container_type_id, device_id, vpaid_type, cash_in, partner_plan_id,
-			site_id, is_active, is_test, is_bad, category_id, use_content
+			site_id, is_active, is_test, is_bad, category_id, use_content, conf_contentroll_dynamic,
+			conf_contentroll_no_ad_callback, json
 		FROM profile WHERE id = ?
 		`, id)
 
 		// извлекаем
 		err := row.Scan(&Id, &Title, &CategoryId, &ContainerTypeId, &DeviceId, &VpaidType, &CashIn, &PartnerPlanId,
-			&SiteId, &IsActive, &IsTest, &IsBad, &CategoryId, &UseContent); if err != nil {
+			&SiteId, &IsActive, &IsTest, &IsBad, &CategoryId, &UseContent, &ConfContentrollDynamic,
+			&ConfContentrollNoAdCallback, &Json); if err != nil {
 			log.Printf("VIDEONOW MYSQL: запрос профиля %s: %s", id, err.Error())
 			return &Profile{}, err
 		}
@@ -99,6 +234,15 @@ func (v *VideoNow) Profile(id string) (*Profile, error){
 
 		_PartnerPlanId, _ := strconv.ParseUint(string(PartnerPlanId), 10, 64)
 		proto.PartnerPlanId = _PartnerPlanId
+
+		if string(ConfContentrollDynamic) == "" {
+			proto.ConfContentrollDynamic = false
+		} else {
+			proto.ConfContentrollDynamic = true
+		}
+
+		proto.ConfContentrollNoAdCallback = string(ConfContentrollNoAdCallback)
+		proto.Json = string(Json)
 
 		proto.Title = string(Title)
 
@@ -151,6 +295,43 @@ func (v *VideoNow) Profile(id string) (*Profile, error){
 				log.Fatalf("VIDEONOW MYSQL: запрос сата %s: %s", SiteId, err.Error())
 			}
 			proto.Site = *site
+		}
+
+		// дастаем доступные только для этой компании профили
+		rows, err := v.Client.Query(`
+		SELECT
+		  c.id
+		FROM campaign as c
+		  LEFT JOIN ban_profile_campaign AS b ON b.campaign_id = c.id AND b.profile_id = ? AND b.campaign_id IN (SELECT id FROM campaign)
+		  LEFT JOIN profile AS p ON p.id = ?
+		WHERE
+		  b.campaign_id IS NULL AND p.container_type_id = (CASE
+		    WHEN c.container = 'contentroll'
+		     THEN 1
+		    WHEN c.container = 'overlay'
+		     THEN 2
+		    WHEN c.container = 'pauseroll'
+		     THEN 0
+		    WHEN c.container = 'postroll'
+		     THEN 0
+		    WHEN c.container = 'preroll'
+		     THEN 0
+		    WHEN c.container = 'timeline'
+		     THEN 0
+		    WHEN c.container = 'slideroll'
+		     THEN 1
+		    WHEN c.container = 'continuousroll'
+		     THEN 1
+		  END)
+  		`, id, id)
+
+		if err == nil {
+			var campaignId int
+			for rows.Next() {
+				err = rows.Scan(&campaignId); if err == nil {
+					proto.Campaign = append(proto.Campaign, campaignId)
+				}
+			}
 		}
 
 		// если есть кеш то положим обьект в него
